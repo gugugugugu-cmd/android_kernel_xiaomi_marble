@@ -66,28 +66,21 @@ jobs:
     needs: [ build ]
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout zipper
-        uses: actions/checkout@v2
-        with:
-          repository: osm0sis/AnyKernel3
-          path: zipper
-
       - name: Download
         uses: actions/download-artifact@v4
         with:
           name: Image-${{ github.ref_name }}
 
-      - name: Patch kpm and pack AK3
+      - name: Patch kpm
         run: |
           curl -L -o kpm https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11-beta/patch_linux
           chmod +x kpm && ./kpm
-          mv oImage zipper/Image && cd zipper 
-          zip -r9 melt-${{ github.ref_name }}-ak3.zip * -x .git README.md *placeholder
+          mv oImage Image
 
 
       - name: Release build
         uses: ncipollo/release-action@v1
         with:
-          artifacts: ${{ github.workspace }}/zipper/melt-${{ github.run_id }}-ak3.zip
+          artifacts: ${{ github.workspace }}/melt-sukisu-susfs(${{ github.ref_name }})
           token: ${{ secrets.BUILD_MELT }}
 
