@@ -14,7 +14,7 @@ diff --git a/arch/arm64/configs/marble_defconfig b/arch/arm64/configs/marble_def
  # CONFIG_LOCALVERSION_AUTO is not set
  CONFIG_UNAME_OVERRIDE=y
  CONFIG_UNAME_OVERRIDE_TARGET="com.google.android.gms"
-@@ -1115,3 +1115,8 @@
+@@ -1115,3 +1115,9 @@
  
  CONFIG_MACH_XIAOMI=y
  CONFIG_MACH_XIAOMI_MARBLE=y
@@ -23,6 +23,7 @@ diff --git a/arch/arm64/configs/marble_defconfig b/arch/arm64/configs/marble_def
 +CONFIG_KSU_MANUAL_HOOK=y
 +CONFIG_KPM=y
 +CONFIG_KALLSYMS=y
++CONFIG_KSU_SUSFS_SUS_SU=n
 Index: drivers/staging/kernelsu/Kconfig
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
@@ -308,7 +309,7 @@ diff --git a/drivers/staging/kernelsu/Makefile b/drivers/staging/kernelsu/Makefi
 +$(info -- SukiSU: KPROBES hooking enabled!)
 +ccflags-y += -DCONFIG_KSU_KPROBES_HOOK
  endif
- 
+
 -ifeq ($(CONFIG_KSU_MANUAL_HOOK),y)
 -ifeq ($(CONFIG_KSU),m)
 -$(error CONFIG_KSU_MANUAL_HOOK cannot be enabled when compiling KernelSU as LKM!)
@@ -6284,7 +6285,7 @@ new file mode 100644
 +#ifndef __KSU_H_SUS_SU
 +#define __KSU_H_SUS_SU
 +
-+#include "../../drivers/kernelsu/core_hook.h"
++#include "../../drivers/staging/kernelsu/core_hook.h"
 +
 +int sus_su_fifo_init(int *maj_dev_num, char *drv_path);
 +int sus_su_fifo_exit(int *maj_dev_num, char *drv_path);

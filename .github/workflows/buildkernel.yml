@@ -1,72 +1,93 @@
 name: Build Kernel
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - '*'
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          ref: melt-rebase
+
       - name: Checkout patch
         uses: actions/checkout@v4
         with:
           ref: patch
           path: ss_patch
 
-      - name: Checkout kernel source
-        uses: actions/checkout@v4
-        with:
-          ref: melt-rebase
-
-      - name: Checkout zipper
-        uses: actions/checkout@v2
-        with:
-          repository: lemniskett/AnyKernel3
-          path: zipper
-
       - name: Patch sukisu-susfs
         run: |
-          mv ../ss_patch/sukisu-susfs-for-melt.patch ./ss.patch
-          patch -p1 < ss.patch
+          mv ss_patch/sukisu-susfs-for-melt.patch ./ss.patch
+          git apply ss.patch
 
       - name: Patch susfs-common
         run: |
           curl -L -o susfs.patch https://gitlab.com/simonpunk/susfs4ksu/-/raw/gki-android12-5.10/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
-          patch -p1 < susfs.patch
+          chmod +x susfs.patch
+          git apply susfs.patch
 
       - name: Android kernel build
-        uses: lemniskett/android-kernel-actions@master
-        id: build
-        env:
-          NAME: Dark-Ages-Último
-        with:
-          arch: arm64
-          compiler: aosp-clang/master/clang-r416183b
-          defconfig: marble_defconfig
-          image: Image
-
-      - name: Patch kpm
         run: |
-          curl -L -o out/arch/arm64/boot/kpm https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11-beta/patch_linux
-          chmod +x out/arch/arm64/boot/kpm
-          ./out/arch/arm64/boot/kpm
+          mkdir clang && cd clang
+          curl -L -o clang.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/428d18d9732aa7ebfcaed87a582d86155db878d4/clang-r416183b.tar.gz
+          chmod +x clang.tar.gz
+          tar -zvxf clang.tar.gz && cd ..
+          export PATH=${{ github.workspace }}/clang/bin:${PATH}
+          make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out mrproper
+          make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out marble_defconfig
+          make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out -j$(nproc --all)
 
-      - name: Release build
-        uses: ncipollo/release-action@v1
+      - name: Upload
+        uses: actions/upload-artifact@v4
         with:
-          artifacts: ${{ steps.build.outputs.outfile }}
-          token: ${{ secrets.BUILD_MELT }}
+          name: Image-${{ github.run_id }}
+          path: ${{ github.workspace }}/out/arch/arm64/boot/Image
+
 
       - name: Push to merge
         run: |
           make mrproper
-          ls -a
-          rm -rf out ss_patch zipper 
+          rm -rf clang out ss_patch zipper ss.patch susfs.patch
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git checkout merge || git checkout -b merge
+          git checkout merge 2>/dev/null || git checkout -b merge
           git add .
-          git commit -m "$(date +'%Y-%m-%d-%H%M%S')"
-          git push origin merge
+          git commit --allow-empty -m "自动构建-${{ github.run_id }}"
+          git push --force origin merge
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    needs: [ build ]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout zipper
+        uses: actions/checkout@v2
+        with:
+          repository: osm0sis/AnyKernel3
+          path: zipper
+
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          name: Image-${{ github.run_id }}
+
+      - name: Patch kpm and pack AK3
+        run: |
+          curl -L -o kpm https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11-beta/patch_linux
+          chmod +x kpm && ./kpm
+          mv oImage zipper/Image && cd zipper 
+          zip -r9 melt-ak3-${{ github.run_id }}.zip * -x .git README.md *placeholder
+
+
+      - name: Release build
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: ${{ github.workspace }}/zipper/melt-ak3-${{ github.run_id }}.zip
+          token: ${{ secrets.BUILD_MELT }}
+
