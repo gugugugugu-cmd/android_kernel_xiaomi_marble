@@ -45,7 +45,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Image-${{ github.run_id }}
+          name: Image-${{ github.ref_name }}
           path: ${{ github.workspace }}/out/arch/arm64/boot/Image
 
 
@@ -57,7 +57,7 @@ jobs:
           git config --global user.email "actions@github.com"
           git checkout merge 2>/dev/null || git checkout -b merge
           git add .
-          git commit --allow-empty -m "自动构建-${{ github.run_id }}"
+          git commit --allow-empty -m "自动构建-${{ github.ref_name }}"
           git push --force origin merge
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,19 +75,19 @@ jobs:
       - name: Download
         uses: actions/download-artifact@v4
         with:
-          name: Image-${{ github.run_id }}
+          name: Image-${{ github.ref_name }}
 
       - name: Patch kpm and pack AK3
         run: |
           curl -L -o kpm https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11-beta/patch_linux
           chmod +x kpm && ./kpm
           mv oImage zipper/Image && cd zipper 
-          zip -r9 melt-ak3-${{ github.run_id }}.zip * -x .git README.md *placeholder
+          zip -r9 melt-${{ github.ref_name }}-ak3.zip * -x .git README.md *placeholder
 
 
       - name: Release build
         uses: ncipollo/release-action@v1
         with:
-          artifacts: ${{ github.workspace }}/zipper/melt-ak3-${{ github.run_id }}.zip
+          artifacts: ${{ github.workspace }}/zipper/melt-${{ github.run_id }}-ak3.zip
           token: ${{ secrets.BUILD_MELT }}
 
