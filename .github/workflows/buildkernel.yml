@@ -1,0 +1,72 @@
+name: Build Kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout patch
+        uses: actions/checkout@v4
+        with:
+          ref: patch
+          path: ss_patch
+
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          ref: melt-rebase
+
+      - name: Checkout zipper
+        uses: actions/checkout@v2
+        with:
+          repository: lemniskett/AnyKernel3
+          path: zipper
+
+      - name: Patch sukisu-susfs
+        run: |
+          mv ../ss_patch/sukisu-susfs-for-melt.patch ./ss.patch
+          patch -p1 < ss.patch
+
+      - name: Patch susfs-common
+        run: |
+          curl -L -o susfs.patch https://gitlab.com/simonpunk/susfs4ksu/-/raw/gki-android12-5.10/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
+          patch -p1 < susfs.patch
+
+      - name: Android kernel build
+        uses: lemniskett/android-kernel-actions@master
+        id: build
+        env:
+          NAME: Dark-Ages-Último
+        with:
+          arch: arm64
+          compiler: aosp-clang/master/clang-r416183b
+          defconfig: marble_defconfig
+          image: Image
+
+      - name: Patch kpm
+        run: |
+          curl -L -o out/arch/arm64/boot/kpm https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11-beta/patch_linux
+          chmod +x out/arch/arm64/boot/kpm
+          ./out/arch/arm64/boot/kpm
+
+      - name: Release build
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: ${{ steps.build.outputs.outfile }}
+          token: ${{ secrets.BUILD_MELT }}
+
+      - name: Push to merge
+        run: |
+          make mrproper
+          ls -a
+          rm -rf out ss_patch zipper 
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git checkout merge || git checkout -b merge
+          git add .
+          git commit -m "$(date +'%Y-%m-%d-%H%M%S')"
+          git push origin merge
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
