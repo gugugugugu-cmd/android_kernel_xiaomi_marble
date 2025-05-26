@@ -24,7 +24,6 @@ diff --git a/arch/arm64/configs/marble_defconfig b/arch/arm64/configs/marble_def
 +CONFIG_KPM=y
 +CONFIG_KALLSYMS=y
 +CONFIG_KSU_SUSFS_SUS_SU=n
-
 Index: fs/sus_su.c
 ===================================================================
 diff --git a/fs/sus_su.c b/fs/sus_su.c
@@ -1368,3 +1367,4 @@ new file mode 100644
 +#define DATA_ADB_NO_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT "/data/adb/susfs_no_auto_add_try_umount_for_bind_mount"
 +
 +#endif // #ifndef KSU_SUSFS_DEF_H
+
