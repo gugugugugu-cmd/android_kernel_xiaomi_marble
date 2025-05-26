@@ -14,16 +14,15 @@ jobs:
         with:
           ref: melt-rebase
 
-      - name: Checkout patch
-        uses: actions/checkout@v4
+      - name: Checkout sukisu
+        uses: actions/checkout@v2
         with:
-          ref: patch
-          path: ss_patch
+          repository: SukiSU-Ultra/SukiSU-Ultra
+          ref: susfs-dev
+          path: driver/staging
 
-      - name: Patch sukisu-susfs
-        run: |
-          mv ss_patch/sukisu-susfs-for-melt.patch ./ss.patch
-          git apply ss.patch
+      - name: overwrite
+        run: rm -rf driver/staging/kernelsu && mv driver/staging/kernel driver/staging/kernelsu
 
       - name: Patch susfs-common
         run: |
@@ -42,10 +41,19 @@ jobs:
           make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out marble_defconfig
           make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out -j$(nproc --all)
 
+      - name: Download kpm patch
+        uses: robinraju/release-downloader@v1
+        with:
+          latest: true
+          preRelease: true
+          repository: "SukiSU-Ultra/SukiSU_KernelPatch_patch"
+          fileName: "patch_linux"
+          out-file-path: "out/arch/arm64/boot"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Patch kpm
         run: |
           cd out/arch/arm64/boot
-          curl -L -o kpm https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11-beta/patch_linux
           chmod +x kpm && ./kpm
           mv oImage Image
 
