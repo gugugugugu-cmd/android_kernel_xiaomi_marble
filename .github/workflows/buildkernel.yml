@@ -61,7 +61,7 @@ jobs:
       - name: Patch kpm
         run: |
           cd out/arch/arm64/boot
-          chmod +x kpm && ./kpm
+          chmod +x patch_linux && ./patch_linux
           mv oImage Image
 
       - name: Upload
