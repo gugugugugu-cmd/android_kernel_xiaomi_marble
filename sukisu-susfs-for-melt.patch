@@ -10,7 +10,7 @@ diff --git a/arch/arm64/configs/marble_defconfig b/arch/arm64/configs/marble_def
 +++ b/arch/arm64/configs/marble_defconfig	(revision 4257730413f007c76072d48f3302518eea139c4a)
 @@ -1,4 +1,4 @@
 -CONFIG_LOCALVERSION="-Melt"
-+CONFIG_LOCALVERSION="-melt-sukisu-susfs_7452c46-1ce7068-5a3153f9-1"
++CONFIG_LOCALVERSION="-melt-sukisu-susfs_c3421a0-61e3a9b-5a3153f9-0"
  # CONFIG_LOCALVERSION_AUTO is not set
  CONFIG_UNAME_OVERRIDE=y
  CONFIG_UNAME_OVERRIDE_TARGET="com.google.android.gms"

@@ -9,31 +9,40 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
+      - name: Format env
+        run: |
+          IFS='-' read -ra TAG <<< "${{ github.ref_name }}"
+          echo "sha_melt=${TAG[0]}" >> $GITHUB_ENV
+          echo "sha_sukisu=${TAG[1]}" >> $GITHUB_ENV
+          echo "sha_susfs=${TAG[2]}" >> $GITHUB_ENV
+          $SHORT_SHA=$(git rev-parse --short "${{ github.sha }}")
+          echo "sha_patch=$SHORT_SHA" >> $GITHUB_ENV
+
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          ref: melt-rebase
+          ref: ${{ env.sha_melt }}
 
       - name: Checkout merge patch
         uses: actions/checkout@v4
         with:
-          ref: patch
+          ref: ${{ env.sha_patch }}
           path: patch
 
       - name: Checkout sukisu
         uses: actions/checkout@v2
         with:
           repository: SukiSU-Ultra/SukiSU-Ultra
-          ref: susfs-dev
-          path: driver/staging
+          ref: ${{ env.sha_sukisu }}
+          path: drivers/staging
 
       - name: overwrite
-        run: rm -rf driver/staging/kernelsu && mv driver/staging/kernel driver/staging/kernelsu
+        run: rm -rf drivers/staging/kernelsu && mv drivers/staging/kernel drivers/staging/kernelsu
 
       - name: Patch sukisu-susfs-dev susfs-common
         run: |
           mv patch/sukisu-susfs-for-melt.patch ss.patch
-          curl -L -o 50.patch https://gitlab.com/simonpunk/susfs4ksu/-/raw/gki-android12-5.10/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
+          curl -L -o 50.patch https://gitlab.com/simonpunk/susfs4ksu/-/raw/${{ env.sha_susfs }}/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
           chmod +x ss.patch && chmod +x 50.patch
           git apply ss.patch && git apply 50.patch
 
@@ -75,12 +84,12 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           make mrproper
-          rm -rf clang out ss_patch zipper ss.patch susfs.patch
+          rm -rf clang out ss_patch ss.patch 50.patch
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git checkout merge 2>/dev/null || git checkout -b merge
           git add .
-          git commit --allow-empty -m "自动构建-${{ github.ref_name }}"
+          git commit --allow-empty -m "自动补丁 ${{ env.sha_patch }}"
           git push --force origin merge
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,15 +98,33 @@ jobs:
     needs: [ build ]
     runs-on: ubuntu-22.04
     steps:
-      - name: Download
+      - name: Format env
+        run: |
+          $SHORT_SHA=$(git rev-parse --short "${{ github.sha }}")
+          echo "sha_patch=$SHORT_SHA" >> $GITHUB_ENV
+
+      - name: Checkout ak3
+        uses: actions/checkout@v4
+        with:
+          repository: kamurimoe/AnyKernel3
+          ref: melt-sukisu-susfs
+          path: zipper
+
+      - name: Download Image
         uses: actions/download-artifact@v4
         with:
-          name: Image-${{ github.ref_name }}
+          name: Image-${{ env.sha_patch }}
+          path: ${{ github.workspace }}/zipper
 
+      - name: Package ak3
+        run: |
+          cd zipper
+          zip -r9 melt-sukisu-susfs-ak3_${{ env.sha_patch }}.zip * -x .git README.md *placeholder
+          cp Image melt-sukisu-susfs_${{ env.sha_patch }}
 
       - name: Release build
         uses: ncipollo/release-action@v1
         with:
-          artifacts: ${{ github.workspace }}/melt-sukisu-susfs(${{ github.ref_name }})
+          artifacts: "${{ github.workspace }}/zipper/melt-sukisu-susfs*"
           token: ${{ secrets.BUILD_MELT }}
 
