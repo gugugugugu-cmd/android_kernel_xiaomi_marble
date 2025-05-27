@@ -12,32 +12,39 @@ jobs:
       - name: Format env
         run: |
           IFS='-' read -ra TAG <<< "${{ github.ref_name }}"
-          echo "sha_melt=${TAG[0]}" >> $GITHUB_ENV
-          echo "sha_sukisu=${TAG[1]}" >> $GITHUB_ENV
           echo "sha_susfs=${TAG[2]}" >> $GITHUB_ENV
-          $SHORT_SHA=$(git rev-parse --short "${{ github.sha }}")
-          echo "sha_patch=$SHORT_SHA" >> $GITHUB_ENV
+          echo "sha_patch=${TAG[3]}" >> $GITHUB_ENV
+          
+          HEADER='Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}'
+          REPO_THIS='https://api.github.com/repos/${{ github.repository }}'
+          REPO_SS='https://api.github.com/repos/SukiSU-Ultra/SukiSU-Ultra'
+          echo "sha_melt_full=$(curl -s -H $HEADER $REPO_THIS/commits/${TAG[0]} | jq -r '.sha')" >> $GITHUB_ENV
+          echo "sha_sukisu_full=$(curl -s -H $HEADER $REPO_SS/commits/${TAG[1]} | jq -r '.sha')" >> $GITHUB_ENV
+          echo "sha_patch_full=$(curl -s -H $HEADER $REPO_THIS/commits/${TAG[3]} | jq -r '.sha')" >> $GITHUB_ENV
 
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.sha_melt }}
+          ref: ${{ env.sha_melt_full }}
 
       - name: Checkout merge patch
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.sha_patch }}
+          ref: ${{ env.sha_patch_full }}
           path: patch
 
       - name: Checkout sukisu
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: SukiSU-Ultra/SukiSU-Ultra
-          ref: ${{ env.sha_sukisu }}
-          path: drivers/staging
+          ref: ${{ env.sha_sukisu_full }}
+          path: drivers/staging/kernel
 
       - name: overwrite
-        run: rm -rf drivers/staging/kernelsu && mv drivers/staging/kernel drivers/staging/kernelsu
+        run: |
+          rm -rf drivers/staging/kernelsu
+          mv drivers/staging/kernel/kernel drivers/staging/kernelsu
+          rm -rf drivers/staging/kernel
 
       - name: Patch sukisu-susfs-dev susfs-common
         run: |
@@ -76,7 +83,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Image-${{ github.ref_name }}
+          name: Image-${{ env.sha_patch  }}
           path: ${{ github.workspace }}/out/arch/arm64/boot/Image
 
 
@@ -84,12 +91,12 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           make mrproper
-          rm -rf clang out ss_patch ss.patch 50.patch
+          rm -rf clang out patch ss.patch 50.patch
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git checkout merge 2>/dev/null || git checkout -b merge
           git add .
-          git commit --allow-empty -m "自动补丁 ${{ env.sha_patch }}"
+          git commit --allow-empty -m "自动推送 ${{ github.ref_name }}"
           git push --force origin merge
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,8 +107,9 @@ jobs:
     steps:
       - name: Format env
         run: |
-          $SHORT_SHA=$(git rev-parse --short "${{ github.sha }}")
-          echo "sha_patch=$SHORT_SHA" >> $GITHUB_ENV
+          IFS='-' read -ra TAG <<< "${{ github.ref_name }}"
+          echo "sha_patch=${TAG[3]}" >> $GITHUB_ENV
+
 
       - name: Checkout ak3
         uses: actions/checkout@v4
