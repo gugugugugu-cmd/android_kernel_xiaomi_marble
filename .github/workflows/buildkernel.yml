@@ -38,22 +38,28 @@ jobs:
         with:
           repository: SukiSU-Ultra/SukiSU-Ultra
           ref: ${{ env.sha_sukisu_full }}
-          path: drivers/staging/kernel
+          path: drivers/staging/sukisu
 
-      - name: overwrite
+      - name: Checkout susfs
+        run: |
+          git clone -b gki-android12-5.10 --depth 10 \
+          "https://${{ secrets.GITLAB_TOKEN }}@gitlab.com/simonpunk/susfs4ksu.git"
+          cd susfs4ksu
+          FULL_SHA=$(git rev-parse 5a3153f9)
+          git checkout $FULL_SHA
+          cd ..
+
+      - name: Patch
         run: |
           rm -rf drivers/staging/kernelsu
-          mv drivers/staging/kernel/kernel drivers/staging/kernelsu
-          rm -rf drivers/staging/kernel
+          mv drivers/staging/sukisu/kernel drivers/staging/kernelsu
+          rm -rf drivers/staging/sukisu
+          rm -rf susfs4ksu/kernel_patches/KernelSU
+          cp -rf susfs4ksu/kernel_patches/* . && mv 50_add_susfs_in_gki-android12-5.10.patch 50.patch
+          cp -rf patch/* .
+          git apply 50.patch
 
-      - name: Patch sukisu-susfs-dev susfs-common
-        run: |
-          mv patch/sukisu-susfs-for-melt.patch ss.patch
-          curl -L -o 50.patch https://gitlab.com/simonpunk/susfs4ksu/-/raw/${{ env.sha_susfs }}/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
-          chmod +x ss.patch && chmod +x 50.patch
-          git apply ss.patch && git apply 50.patch
-
-      - name: Android kernel build
+      - name: Build kernel
         run: |
           mkdir clang && cd clang
           curl -L -o clang.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/428d18d9732aa7ebfcaed87a582d86155db878d4/clang-r416183b.tar.gz
@@ -91,7 +97,7 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           make mrproper
-          rm -rf clang out patch ss.patch 50.patch
+          rm -rf clang out patch susfs4ksu 50.patch
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git checkout merge 2>/dev/null || git checkout -b merge
@@ -128,7 +134,7 @@ jobs:
         run: |
           cd zipper
           zip -r9 melt-sukisu-susfs-ak3_${{ env.sha_patch }}.zip * -x .git README.md *placeholder
-          cp Image melt-sukisu-susfs_${{ env.sha_patch }}
+          cp Image melt-sukisu-susfs-img_${{ env.sha_patch }}
 
       - name: Release build
         uses: ncipollo/release-action@v1
