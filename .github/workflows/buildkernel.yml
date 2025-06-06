@@ -45,7 +45,7 @@ jobs:
           git clone -b gki-android12-5.10 --depth 10 \
           "https://${{ secrets.GITLAB_TOKEN }}@gitlab.com/simonpunk/susfs4ksu.git"
           cd susfs4ksu
-          FULL_SHA=$(git rev-parse 5a3153f9)
+          FULL_SHA=$(git rev-parse ${{ env.sha_susfs }})
           git checkout $FULL_SHA
           cd ..
 
